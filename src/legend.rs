@@ -7,7 +7,7 @@ pub struct AnonymizationMap {
     pub emails: HashMap<String, String>,
     pub urls: HashMap<String, String>,
     pub keywords: HashMap<String, String>,
-    pub displayNames: HashMap<String, String>,
+    pub display_names: HashMap<String, String>,
 }
 
 impl AnonymizationMap {
@@ -18,7 +18,7 @@ impl AnonymizationMap {
             emails: HashMap::new(),
             urls: HashMap::new(),
             keywords: HashMap::new(),
-            displayNames: HashMap::new(),
+            display_names: HashMap::new(),
         }
     }
 
@@ -28,7 +28,7 @@ impl AnonymizationMap {
             && self.emails.is_empty()
             && self.urls.is_empty()
             && self.keywords.is_empty()
-            && self.displayNames.is_empty()
+            && self.display_names.is_empty()
     }
 }
 
@@ -64,7 +64,7 @@ pub fn format_legend(map: &AnonymizationMap) -> Result<String, LegendError> {
         all_entries.push((original.clone(), anonymous.clone()));
     }
 
-    for (original, anonymous) in &map.displayNames {
+    for (original, anonymous) in &map.display_names {
         all_entries.push((original.clone(), anonymous.clone()));
     }
 

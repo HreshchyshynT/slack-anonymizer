@@ -146,20 +146,27 @@ pub fn anonymize_urls(
 
 pub fn anonymize_display_names(
     text: &str,
-    map: &mut HashMap<String, String>,
+    display_names_map: &mut HashMap<String, String>,
+    usernames_map: &HashMap<String, String>,
 ) -> Result<String, PatternError> {
     let re = Regex::new(DISPLAY_NAME_PATTERN)?;
-    let mut counter = map.len() + 1;
+    let mut counter = display_names_map.len() + 1;
 
     let result = re.replace_all(text, |caps: &regex::Captures| {
         let matched = caps.get(0).unwrap().as_str();
 
-        if let Some(anonymous) = map.get(matched) {
+        if let Some(anonymous) = display_names_map.get(matched) {
             anonymous.clone()
         } else {
-            let anonymous = format!("name{}", counter);
-            map.insert(matched.to_string(), anonymous.clone());
-            counter += 1;
+            let anonymous: String;
+            if let Some(username) = usernames_map.get(&format!("@{}", matched)) {
+                anonymous = username.replace("@", "");
+                display_names_map.insert(matched.to_string(), anonymous.clone());
+            } else {
+                anonymous = format!("name{}", counter);
+                display_names_map.insert(matched.to_string(), anonymous.clone());
+                counter += 1;
+            }
             anonymous
         }
     });
@@ -257,9 +264,24 @@ mod tests {
     fn test_anonymize_display_names() {
         let mut map = HashMap::new();
         let text = "**Jon Snow** Today at 3:17 PM\nHello Aria Stark and John Doe";
-        let result = anonymize_display_names(text, &mut map).unwrap();
+        let result = anonymize_display_names(text, &mut map, &HashMap::new()).unwrap();
 
         assert!(result.contains("name1")); // Jon Snow
+        assert!(result.contains("name2")); // Aria Stark  
+        assert!(result.contains("name3")); // John Doe
+        assert!(!result.contains("Jon Snow"));
+        assert!(!result.contains("Aria Stark"));
+        assert!(!result.contains("John Doe"));
+    }
+
+    #[test]
+    fn test_anonymize_display_names_match_username() {
+        let mut map = HashMap::new();
+        let username_map = HashMap::from([("@Jon Snow".to_string(), "@user1".to_string())]);
+        let text = "**Jon Snow** Today at 3:17 PM\nHello Aria Stark and John Doe";
+        let result = anonymize_display_names(text, &mut map, &username_map).unwrap();
+
+        assert!(result.contains("user1")); // Jon Snow
         assert!(result.contains("name2")); // Aria Stark  
         assert!(result.contains("name3")); // John Doe
         assert!(!result.contains("Jon Snow"));
@@ -273,7 +295,7 @@ mod tests {
 
         // Should match: exactly two words, both starting with uppercase
         let text = "Alice Smith and Bob Jones met with Carol White";
-        let result = anonymize_display_names(text, &mut map).unwrap();
+        let _ = anonymize_display_names(text, &mut map, &HashMap::new()).unwrap();
 
         assert_eq!(map.len(), 3);
         assert!(map.contains_key("Alice Smith"));
@@ -287,7 +309,7 @@ mod tests {
 
         // Should NOT match: single words, lowercase, three words
         let text = "john smith and Alice and Bob Smith Jones should not all match";
-        let result = anonymize_display_names(text, &mut map).unwrap();
+        let _ = anonymize_display_names(text, &mut map, &HashMap::new()).unwrap();
 
         // Only "Bob Smith" should match (exactly two words, both uppercase start)
         assert_eq!(map.len(), 1);
@@ -324,7 +346,7 @@ mod tests {
 
         // keep the same order as in anonymizer
         let result = anonymize_users(text, &mut user_map).unwrap();
-        let result = anonymize_display_names(&result, &mut display_map).unwrap();
+        let result = anonymize_display_names(&result, &mut display_map, &user_map).unwrap();
 
         assert!(result.contains("name1 name1")); // Jon Snow appears twice
         assert!(!result.contains("Jon Snow"));

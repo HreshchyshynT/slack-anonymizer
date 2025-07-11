@@ -39,7 +39,7 @@ pub fn anonymize_text(
     result = anonymize_users(&result, &mut map.users)?;
 
     // 2. Display names
-    result = anonymize_display_names(&result, &mut map.displayNames)?;
+    result = anonymize_display_names(&result, &mut map.display_names, &map.users)?;
 
     // 3. Channel references
     result = anonymize_channels(&result, &mut map.channels)?;
