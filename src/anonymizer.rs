@@ -1,7 +1,8 @@
 use crate::error::AnonymizationError;
 use crate::legend::AnonymizationMap;
 use crate::patterns::{
-    anonymize_channels, anonymize_emails, anonymize_keywords, anonymize_urls, anonymize_users,
+    anonymize_channels, anonymize_display_names, anonymize_emails, anonymize_keywords,
+    anonymize_urls, anonymize_users,
 };
 
 pub struct Options {
@@ -32,21 +33,26 @@ pub fn anonymize_text(
     let mut result = text.to_string();
 
     // Process in the specified order:
-    // 1. User mentions
+    // 1. User mentions - to avoid conflicts with display names,
+    // because usernames could be copied in format @Name Format
+    // when user just select text in slack and copied it
     result = anonymize_users(&result, &mut map.users)?;
 
-    // 2. Channel references
+    // 2. Display names
+    result = anonymize_display_names(&result, &mut map.displayNames)?;
+
+    // 3. Channel references
     result = anonymize_channels(&result, &mut map.channels)?;
 
-    // 3. Email addresses
+    // 4. Email addresses
     result = anonymize_emails(&result, &mut map.emails)?;
 
-    // 4. URLs (if enabled)
+    // 5. URLs (if enabled)
     if options.anonymize_urls {
         result = anonymize_urls(&result, &mut map.urls)?;
     }
 
-    // 5. Custom keywords
+    // 6. Custom keywords
     if !options.keywords.is_empty() {
         result = anonymize_keywords(&result, &options.keywords, &mut map.keywords)?;
     }
@@ -64,6 +70,7 @@ mod tests {
         let options = Options::default();
 
         let (result, map) = anonymize_text(text, &options).unwrap();
+        println!("Result: {}", result);
 
         assert!(result.contains("@user1"));
         assert!(result.contains("#ch1"));
@@ -106,7 +113,7 @@ mod tests {
 
         // @support should be anonymized as @user1, not affected by keyword replacement
         assert!(result.contains("@user1"));
-        assert!(result.contains("keyword1"));
+        assert!(!result.contains("keyword1"));
         assert!(!result.contains("@keyword1"));
     }
 
